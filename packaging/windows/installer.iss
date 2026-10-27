@@ -1,14 +1,14 @@
-; Inno Setup script for mcDiskFree. Per-user install (no admin rights), adds a Start menu entry, no startup entry.
-; Silent install, as winget runs it:  mcdiskfree-setup-<version>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+; Inno Setup script for mormiDiskFree. Per-user install (no admin rights), adds a Start menu entry, no startup entry.
+; Silent install, as winget runs it:  mormidiskfree-setup-<version>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ; CI replaces __VERSION__ and compiles it (see .github/workflows/build.yml).
 [Setup]
 AppId={{7D2C4B8E-3A51-4F6D-9C0B-1E8A5F2D7B64}
-AppName=mcDiskFree
+AppName=mormiDiskFree
 AppVersion=__VERSION__
 AppPublisher=mormitech
-AppPublisherURL=https://github.com/mormitech/mcdiskfree
-AppSupportURL=https://github.com/mormitech/mcdiskfree/issues
-DefaultDirName={autopf}\mcdiskfree
+AppPublisherURL=https://github.com/mormitech/mormidiskfree
+AppSupportURL=https://github.com/mormitech/mormidiskfree/issues
+DefaultDirName={autopf}\mormidiskfree
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
@@ -16,40 +16,40 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\dist
-OutputBaseFilename=mcdiskfree-setup-__VERSION__-windows-x64
-UninstallDisplayName=mcDiskFree
-UninstallDisplayIcon={app}\mcdiskfree.exe
+OutputBaseFilename=mormidiskfree-setup-__VERSION__-windows-x64
+UninstallDisplayName=mormiDiskFree
+UninstallDisplayIcon={app}\mormidiskfree.exe
 Compression=lzma2
 SolidCompression=yes
 
 [Files]
-Source: "..\..\build\bin\mcdiskfree.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\build\bin\mormidiskfree.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\mcDiskFree"; Filename: "{app}\mcdiskfree.exe"
+Name: "{autoprograms}\mormiDiskFree"; Filename: "{app}\mormidiskfree.exe"
 
 [Run]
-Filename: "{app}\mcdiskfree.exe"; Description: "Start mcDiskFree"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\mormidiskfree.exe"; Description: "Start mormiDiskFree"; Flags: nowait postinstall skipifsilent
 
 [Code]
 // taskkill returns before Windows has released the file of the killed process, so wait a moment before the installer
 // replaces or deletes it.
-procedure StopMcdiskfree;
+procedure StopMormidiskfree;
 var
   ResultCode: Integer;
 begin
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM mcdiskfree.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM mormidiskfree.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(1500);
 end;
 
 // An upgrade replaces a file that may be in use, so close the running app first.
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssInstall then StopMcdiskfree;
+  if CurStep = ssInstall then StopMormidiskfree;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usUninstall then StopMcdiskfree;
+  if CurUninstallStep = usUninstall then StopMormidiskfree;
 end;

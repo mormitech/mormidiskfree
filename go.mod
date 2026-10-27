@@ -1,4 +1,4 @@
-module mcdiskfree
+module mormidiskfree
 
 go 1.25.0
 

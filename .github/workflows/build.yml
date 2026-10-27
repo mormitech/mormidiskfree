@@ -15,11 +15,11 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            artifact: mcdiskfree-macos
+            artifact: mormidiskfree-macos
           - os: ubuntu-latest
-            artifact: mcdiskfree-linux
+            artifact: mormidiskfree-linux
           - os: windows-latest
-            artifact: mcdiskfree-windows
+            artifact: mormidiskfree-windows
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -58,20 +58,20 @@ jobs:
         run: |
           mkdir dist
           # ad-hoc signature, so the bundle is at least internally consistent; it is not notarized
-          codesign --force --deep -s - build/bin/mcdiskfree.app
-          ditto -c -k --keepParent build/bin/mcdiskfree.app "dist/mcdiskfree-${{ steps.version.outputs.version }}-macos-arm64.zip"
+          codesign --force --deep -s - build/bin/mormidiskfree.app
+          ditto -c -k --keepParent build/bin/mormidiskfree.app "dist/mormidiskfree-${{ steps.version.outputs.version }}-macos-arm64.zip"
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir dist
-          tar -czf "dist/mcdiskfree-${{ steps.version.outputs.version }}-linux-x64.tar.gz" -C build/bin mcdiskfree -C "$PWD" LICENSE
+          tar -czf "dist/mormidiskfree-${{ steps.version.outputs.version }}-linux-x64.tar.gz" -C build/bin mormidiskfree -C "$PWD" LICENSE
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $v = '${{ steps.version.outputs.version }}'
           New-Item -ItemType Directory dist | Out-Null
-          Compress-Archive -Path build\bin\mcdiskfree.exe, LICENSE -DestinationPath "dist\mcdiskfree-$v-windows-x64.zip"
+          Compress-Archive -Path build\bin\mormidiskfree.exe, LICENSE -DestinationPath "dist\mormidiskfree-$v-windows-x64.zip"
           choco install innosetup -y --no-progress
           (Get-Content packaging\windows\installer.iss -Raw).Replace('__VERSION__', $v) | Set-Content packaging\windows\installer.generated.iss
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q packaging\windows\installer.generated.iss
@@ -83,24 +83,24 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $setup = Get-ChildItem dist\mcdiskfree-setup-*.exe | Select-Object -First 1
+          $setup = Get-ChildItem dist\mormidiskfree-setup-*.exe | Select-Object -First 1
           if (-not $setup) { throw 'no installer in dist' }
           $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru
           if (-not $p.WaitForExit(180000)) { throw 'installer did not finish in 3 minutes' }
           if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
-          $dir = Join-Path $env:LOCALAPPDATA 'Programs\mcdiskfree'
-          $exe = Join-Path $dir 'mcdiskfree.exe'
-          foreach ($f in 'mcdiskfree.exe', 'LICENSE') {
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\mormidiskfree'
+          $exe = Join-Path $dir 'mormidiskfree.exe'
+          foreach ($f in 'mormidiskfree.exe', 'LICENSE') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing $f after install" }
           }
-          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\mcDiskFree.lnk'
+          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\mormiDiskFree.lnk'
           if (-not (Test-Path $lnk)) { throw 'no Start menu entry' }
           Write-Host 'installed: files and Start menu entry are there'
           # The app has to start and keep running (a missing WebView2 runtime, for one, makes it exit at once).
           $app = Start-Process $exe -PassThru
           Start-Sleep -Seconds 10
-          if ($app.HasExited) { throw "mcdiskfree exited right after starting (exit code $($app.ExitCode))" }
-          Write-Host 'mcdiskfree is running'
+          if ($app.HasExited) { throw "mormidiskfree exited right after starting (exit code $($app.ExitCode))" }
+          Write-Host 'mormidiskfree is running'
           Stop-Process -Id $app.Id -Force
           $uninstaller = Get-ChildItem (Join-Path $dir 'unins*.exe') | Select-Object -First 1
           $u = Start-Process $uninstaller.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru

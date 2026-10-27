@@ -35,7 +35,7 @@ var cacheDir = func() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(d, "mcdiskfree")
+	return filepath.Join(d, "mormidiskfree")
 }
 
 func cacheFile(root string) string {

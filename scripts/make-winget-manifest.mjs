@@ -1,6 +1,6 @@
 // Writes the three winget manifest files for a release.
 //   node scripts/make-winget-manifest.mjs [version] [outDir]
-// The files go in microsoft/winget-pkgs under manifests/m/mormitech/mcdiskfree/<version>/ (submitted as a pull request).
+// The files go in microsoft/winget-pkgs under manifests/m/mormitech/mormidiskfree/<version>/ (submitted as a pull request).
 // winget recognises the Inno Setup installer and runs it silently (/VERYSILENT /SUPPRESSMSGBOXES /NORESTART).
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -9,11 +9,11 @@ import { join, resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const version = process.argv[2] ?? JSON.parse(readFileSync(join(root, 'wails.json'), 'utf8')).info.productVersion;
 const outDir = resolve(process.argv[3] ?? join(root, 'dist', 'winget', version));
-const repo = 'mormitech/mcdiskfree';
-const id = 'mormitech.mcdiskfree';
+const repo = 'mormitech/mormidiskfree';
+const id = 'mormitech.mormidiskfree';
 const schema = '1.12.0';
 
-const url = `https://github.com/${repo}/releases/download/v${version}/mcdiskfree-setup-${version}-windows-x64.exe`;
+const url = `https://github.com/${repo}/releases/download/v${version}/mormidiskfree-setup-${version}-windows-x64.exe`;
 const res = await fetch(url);
 if (!res.ok) throw new Error(`${url}: HTTP ${res.status} (is the release published?)`);
 const sha = createHash('sha256').update(Buffer.from(await res.arrayBuffer())).digest('hex').toUpperCase();
@@ -55,13 +55,13 @@ PackageLocale: en-US
 Publisher: mormitech
 PublisherUrl: https://github.com/mormitech
 PublisherSupportUrl: https://github.com/${repo}/issues
-PackageName: mcDiskFree
+PackageName: mormiDiskFree
 PackageUrl: https://github.com/${repo}
 License: MIT
 LicenseUrl: https://github.com/${repo}/blob/main/LICENSE
 ShortDescription: Free disk space analyzer with an interactive sunburst chart.
-Description: mcDiskFree scans a folder or a whole disk and shows what takes up the space as an interactive sunburst chart. It shows the free space of the disk, keeps a basket of items to move to the Recycle Bin, and remembers its last scans so it reopens instantly. It makes no network connections.
-Moniker: mcdiskfree
+Description: mormiDiskFree scans a folder or a whole disk and shows what takes up the space as an interactive sunburst chart. It shows the free space of the disk, keeps a basket of items to move to the Recycle Bin, and remembers its last scans so it reopens instantly. It makes no network connections.
+Moniker: mormidiskfree
 Tags:
 - disk
 - disk-space

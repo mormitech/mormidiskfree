@@ -494,19 +494,19 @@ addEventListener('resize', () => { if (current) drawChart(current); });
 // The program started with --about shows this instead of the app. Links open in the system's browser.
 
 const COFFEE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9.5h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5zM16.5 11h1.5a2.5 2.5 0 0 1 0 5h-1.8M8 3.5c-.9 1 .9 1.8 0 2.8M12 3.5c-.9 1 .9 1.8 0 2.8"/></svg>';
-const REPO = 'https://github.com/mormitech/mcdiskfree';
+const REPO = 'https://github.com/mormitech/mormidiskfree';
 
 async function showAbout() {
     document.body.classList.add('about-mode');
     $('about').hidden = false;
     $('about').innerHTML = `<img class="logo" src="${logo}" alt="" width="132">
-        <h1>mcDiskFree</h1>
+        <h1>mormiDiskFree</h1>
         <p class="muted">Version ${esc(await Version())}</p>
         <p>See what is eating your disk: a disk space analyzer with an interactive sunburst chart, for macOS, Windows and Linux.</p>
         <p class="muted">Free and open source under the MIT license: use, modify, distribute and sell it, privately or commercially. No accounts, no ads, no telemetry.</p>
         <p class="links"><a href="${REPO}">Website and source code</a><a href="${REPO}/issues">Report a problem</a><a href="${REPO}/blob/main/LICENSE">License</a><a class="coffee" href="https://mormitech.com/support-us/">${COFFEE}Buy me a coffee</a></p>
         <details class="disclaimer"><summary>Disclaimer</summary>
-        <p>mcDiskFree is free software provided by Mormitech "as is" and "as available", without warranty of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, accuracy and non-infringement.</p>
+        <p>mormiDiskFree is free software provided by Mormitech "as is" and "as available", without warranty of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, accuracy and non-infringement.</p>
         <p>You use it at your own risk. You are responsible for your data and for keeping current backups. Review everything in the basket before you move it to the Trash. Scan results and sizes may be incomplete or differ from what your system reports.</p>
         <p>To the maximum extent permitted by applicable law, Mormitech and the contributors exclude all liability for any loss or damage arising out of or in connection with the software or its use, including data loss, corruption, system instability or any other direct, indirect, incidental or consequential side effect, even if advised of the possibility of such damage. Nothing here excludes liability that cannot be excluded by law.</p>
         <p>This notice supplements the MIT license, whose terms apply in full.</p></details>`;
