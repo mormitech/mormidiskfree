@@ -11,7 +11,7 @@ import (
 	"time"
 
 	wr "github.com/wailsapp/wails/v2/pkg/runtime"
-	"mcdiskfree/internal/disk"
+	"mormidiskfree/internal/disk"
 )
 
 // App is bound to the frontend: every exported method can be called from JavaScript.

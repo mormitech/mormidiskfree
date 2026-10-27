@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"mcdiskfree/internal/disk"
+	"mormidiskfree/internal/disk"
 )
 
 // Demo mode (--mock <platform>, or --demo): the app shows a made-up set of disks instead of the real ones, so

@@ -41,7 +41,7 @@ func version() string {
 // starts itself with --about, because Wails v2 has one window per process. Other arguments, such as the ones macOS adds
 // when it launches an app, are ignored.
 func startFlags(args []string) (platform string, about bool) {
-	fs := flag.NewFlagSet("mcdiskfree", flag.ContinueOnError)
+	fs := flag.NewFlagSet("mormidiskfree", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&platform, "mock", "", "show fictional disks of this platform (windows, linux or macos) instead of the real ones")
 	fs.StringVar(&platform, "demo", "", "same as --mock")
@@ -59,15 +59,15 @@ func main() {
 	if platform != "" {
 		var err error
 		if mock, err = loadMock(platform); err != nil {
-			fmt.Fprintln(os.Stderr, "mcdiskfree:", err)
+			fmt.Fprintln(os.Stderr, "mormidiskfree:", err)
 			os.Exit(2)
 		}
 	}
 	app := NewApp(mock)
-	title, width, height := "mcDiskFree v"+version(), windowW, windowH
+	title, width, height := "mormiDiskFree v"+version(), windowW, windowH
 	var menuBar *menu.Menu
 	if about {
-		app.mode, title, width, height = "about", "About mcDiskFree", 440, 600
+		app.mode, title, width, height = "about", "About mormiDiskFree", 440, 600
 	} else { // the About window has no menu of its own
 		menuBar = appMenu(app)
 	}

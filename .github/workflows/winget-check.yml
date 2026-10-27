@@ -43,22 +43,22 @@ jobs:
       - name: Run the installer the way winget does
         shell: pwsh
         run: |
-          $manifest = Get-Content manifest\mormitech.mcdiskfree.installer.yaml -Raw
+          $manifest = Get-Content manifest\mormitech.mormidiskfree.installer.yaml -Raw
           $url = [regex]::Match($manifest, 'InstallerUrl: (\S+)').Groups[1].Value
           $sha = [regex]::Match($manifest, 'InstallerSha256: (\S+)').Groups[1].Value
-          $exe = Join-Path $env:RUNNER_TEMP 'mcdiskfree-setup.exe'
+          $exe = Join-Path $env:RUNNER_TEMP 'mormidiskfree-setup.exe'
           Invoke-WebRequest $url -OutFile $exe
           if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $sha) { throw "installer hash differs from the manifest ($sha)" }
           Write-Host 'installer hash matches the manifest'
           $p = Start-Process $exe -ArgumentList '/SP-','/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru
           if (-not $p.WaitForExit(180000)) { throw 'installer did not finish in 3 minutes' }
           if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
-          $dir = Join-Path $env:LOCALAPPDATA 'Programs\mcdiskfree'
-          if (-not (Test-Path (Join-Path $dir 'mcdiskfree.exe'))) { throw 'mcdiskfree.exe not installed' }
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\mormidiskfree'
+          if (-not (Test-Path (Join-Path $dir 'mormidiskfree.exe'))) { throw 'mormidiskfree.exe not installed' }
           Write-Host 'installed silently'
           $u = Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru
           if (-not $u.WaitForExit(120000)) { throw 'uninstaller did not finish in 2 minutes' }
           $deadline = (Get-Date).AddSeconds(60)
-          while ((Test-Path (Join-Path $dir 'mcdiskfree.exe')) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 2 }
-          if (Test-Path (Join-Path $dir 'mcdiskfree.exe')) { throw 'files left after uninstall' }
+          while ((Test-Path (Join-Path $dir 'mormidiskfree.exe')) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 2 }
+          if (Test-Path (Join-Path $dir 'mormidiskfree.exe')) { throw 'files left after uninstall' }
           Write-Host 'silent uninstall removed everything'

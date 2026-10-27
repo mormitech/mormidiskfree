@@ -1,4 +1,4 @@
-<h1 align="center">mcDiskFree</h1>
+<h1 align="center">mormiDiskFree</h1>
 
 <p align="center">
   <b>See what is eating your disk.</b><br>
@@ -6,14 +6,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mormitech/mcdiskfree/actions/workflows/build.yml"><img alt="build" src="https://github.com/mormitech/mcdiskfree/actions/workflows/build.yml/badge.svg"></a>
+  <a href="https://github.com/mormitech/mormidiskfree/actions/workflows/build.yml"><img alt="build" src="https://github.com/mormitech/mormidiskfree/actions/workflows/build.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg">
   <img alt="status" src="https://img.shields.io/badge/status-early%20preview-orange.svg">
 </p>
 
 <p align="center">
-  <a href="https://mormitech.com/mctools/mcdiskfree/"><img alt="mcDiskFree showing a whole disk as an interactive sunburst chart" src="https://mormitech.com/mctools/mcdiskfree/assets/mcdiskfree_02-whole-disk.png" width="820"></a>
+  <a href="https://mormitech.com/mctools/mcdiskfree/"><img alt="mormiDiskFree showing a whole disk as an interactive sunburst chart" src="https://mormitech.com/mctools/mcdiskfree/assets/mcdiskfree_02-whole-disk.png" width="820"></a>
 </p>
 
 ---
@@ -23,19 +23,19 @@
 > **A disk analyzer that is free, forever, on every platform, and installed the way you install everything else.**
 
 ```
-brew install mormitech/tap/mcdiskfree          # macOS, Apple silicon     (available now)
-scoop bucket add mormitech https://github.com/mormitech/scoop-bucket && scoop install mcdiskfree   # Windows (available now)
-winget install mormitech.mcdiskfree               # Windows                  (coming: submitted to Microsoft)
-brew install mormitech/tap/mcdiskfree          # Linux x64                (available now)
+brew install mormitech/tap/mormidiskfree          # macOS, Apple silicon     (available now)
+scoop bucket add mormitech https://github.com/mormitech/scoop-bucket && scoop install mormidiskfree   # Windows (available now)
+winget install mormitech.mormidiskfree               # Windows                  (coming: submitted to Microsoft)
+brew install mormitech/tap/mormidiskfree          # Linux x64                (available now)
 ```
 
-Good disk analyzers exist, but the best ones are paid and tied to one operating system. mcDiskFree is an attempt to
+Good disk analyzers exist, but the best ones are paid and tied to one operating system. mormiDiskFree is an attempt to
 build the same experience (a clear, interactive picture of where your space went) as a small native app that costs
 nothing, has no accounts, no ads, no telemetry and no upsell, and is installable with the package manager you already use.
 
 ## What it does
 
-mcDiskFree scans a folder or a whole disk and draws it as an interactive **sunburst chart**: every ring is a folder
+mormiDiskFree scans a folder or a whole disk and draws it as an interactive **sunburst chart**: every ring is a folder
 level, every slice is sized by the space it takes on disk.
 
 - **Click to drill in.** Click a slice to open the folder, the centre (or **↑ Up**, or right-click) to go back, **⌂ Root** to jump to the top.
@@ -50,26 +50,26 @@ level, every slice is sized by the space it takes on disk.
 
 ## Install
 
-mcDiskFree is an **early preview** (version 0.6). Pick your system:
+mormiDiskFree is an **early preview** (version 0.6). Pick your system:
 
 **macOS** (Apple silicon), with [Homebrew](https://brew.sh):
 
 ```
-brew install mormitech/tap/mcdiskfree
+brew install mormitech/tap/mormidiskfree
 ```
 
-**Windows**: with [Scoop](https://scoop.sh): `scoop bucket add mormitech https://github.com/mormitech/scoop-bucket` then `scoop install mcdiskfree`. `winget install mormitech.mcdiskfree` is coming; the package is submitted and waits for Microsoft's approval. Or
-download `mcdiskfree-setup-<version>-windows-x64.exe` from the [latest release](https://github.com/mormitech/mcdiskfree/releases/latest)
+**Windows**: with [Scoop](https://scoop.sh): `scoop bucket add mormitech https://github.com/mormitech/scoop-bucket` then `scoop install mormidiskfree`. `winget install mormitech.mormidiskfree` is coming; the package is submitted and waits for Microsoft's approval. Or
+download `mormidiskfree-setup-<version>-windows-x64.exe` from the [latest release](https://github.com/mormitech/mormidiskfree/releases/latest)
 and run it (no admin rights needed; `/VERYSILENT` installs without any window).
 
-**Linux** (x64), with [Homebrew](https://brew.sh) (a current version, which installs casks on Linux too): `brew install mormitech/tap/mcdiskfree`. You still need GTK 3 and WebKitGTK 4.1 from your distribution (see below). Or download `mcdiskfree-<version>-linux-x64.tar.gz` from the latest release, extract it and run `mcdiskfree`.
+**Linux** (x64), with [Homebrew](https://brew.sh) (a current version, which installs casks on Linux too): `brew install mormitech/tap/mormidiskfree`. You still need GTK 3 and WebKitGTK 4.1 from your distribution (see below). Or download `mormidiskfree-<version>-linux-x64.tar.gz` from the latest release, extract it and run `mormidiskfree`.
 You need GTK 3 and WebKitGTK 4.1 installed (`libgtk-3-0` and `libwebkit2gtk-4.1-0` on Debian and Ubuntu).
 
 **From source**, it takes a minute:
 
 ```
-git clone https://github.com/mormitech/mcdiskfree
-cd mcdiskfree/frontend && npm install && cd ..
+git clone https://github.com/mormitech/mormidiskfree
+cd mormidiskfree/frontend && npm install && cd ..
 wails build            # the app ends up in build/bin
 ```
 
@@ -83,7 +83,7 @@ build with `-tags webkit2_41`.
 |---|---|---|---|
 | Builds and tests in CI | ✅ | ✅ (installer installed, started and uninstalled on a runner) | ✅ |
 | Used and tried by hand | ✅ (Apple silicon) | ⏳ not yet | ⏳ not yet |
-| Install | `brew install mormitech/tap/mcdiskfree` ✅ | installer on the release ✅, `scoop install mcdiskfree` ✅, winget ⏳ (submitted) | tar.gz on the release ✅, `brew install mormitech/tap/mcdiskfree` ✅ |
+| Install | `brew install mormitech/tap/mormidiskfree` ✅ | installer on the release ✅, `scoop install mormidiskfree` ✅, winget ⏳ (submitted) | tar.gz on the release ✅, `brew install mormitech/tap/mormidiskfree` ✅ |
 | Move to Trash | Finder (so "Put Back" works) | Recycle Bin (untested) | `gio trash` or `trash-put` (untested) |
 
 Releases are not code-signed yet. The Homebrew cask clears the macOS download flag, so brew installs open without a
@@ -92,9 +92,9 @@ SmartScreen shows **More info → Run anyway**. Free signing for Windows is plan
 
 ## Privacy
 
-mcDiskFree makes no network connections and sends nothing anywhere. The only thing it writes is its cache: a
+mormiDiskFree makes no network connections and sends nothing anywhere. The only thing it writes is its cache: a
 compressed copy of your last scans (file and folder names and sizes) in your user cache folder
-(`~/Library/Caches/mcdiskfree`, `%LocalAppData%\mcdiskfree`, `~/.cache/mcdiskfree`). Delete that folder any time.
+(`~/Library/Caches/mormidiskfree`, `%LocalAppData%\mormidiskfree`, `~/.cache/mormidiskfree`). Delete that folder any time.
 
 ## How it works
 
@@ -120,7 +120,7 @@ Next, in this order:
    Quick Look, short explanations for system folders, units and theme settings.
 5. **Real change detection** with file-system events, for instant incremental updates.
 
-Have an idea or found a bug? [Open an issue](https://github.com/mormitech/mcdiskfree/issues).
+Have an idea or found a bug? [Open an issue](https://github.com/mormitech/mormidiskfree/issues).
 
 ## Develop
 
@@ -143,7 +143,7 @@ go test ./...
 **Demo mode** shows made-up disks instead of yours, handy for screenshots. Nothing real is scanned, cached or deleted:
 
 ```
-mcdiskfree --mock windows      # or linux, macos; --mock=windows and --demo work too
+mormidiskfree --mock windows      # or linux, macos; --mock=windows and --demo work too
 ```
 
 The version lives in one place, `wails.json`.
@@ -152,11 +152,11 @@ Changes to `main` go through a pull request. A release is cut by pushing a `v*` 
 
 ## Disclaimer
 
-mcDiskFree is free software, provided by Mormitech **"as is" and "as available"**, without warranty of any kind, express
+mormiDiskFree is free software, provided by Mormitech **"as is" and "as available"**, without warranty of any kind, express
 or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy and
 non-infringement.
 
-By installing or using mcDiskFree you acknowledge and agree that:
+By installing or using mormiDiskFree you acknowledge and agree that:
 
 - **Your data is your responsibility.** The app can move files and folders to the Trash or Recycle Bin. You decide what
   is selected and removed. Keep current backups of everything you care about, and review the basket before you confirm.
