@@ -50,7 +50,7 @@ level, every slice is sized by the space it takes on disk.
 
 ## Install
 
-mormiDiskFree is an **early preview** (version 0.6). Pick your system:
+mormiDiskFree is an **early preview** (version 0.7). Pick your system:
 
 **macOS** (Apple silicon), with [Homebrew](https://brew.sh):
 
