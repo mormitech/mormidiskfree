@@ -500,7 +500,7 @@ async function showAbout() {
     document.body.classList.add('about-mode');
     $('about').hidden = false;
     $('about').innerHTML = `<img class="logo" src="${logo}" alt="" width="132">
-        <h1>mormiDiskFree</h1>
+        <h1><span class="wm-mormi">mormi</span><span class="wm-diskfree">DiskFree</span></h1>
         <p class="muted">Version ${esc(await Version())}</p>
         <p>See what is eating your disk: a disk space analyzer with an interactive sunburst chart, for macOS, Windows and Linux.</p>
         <p class="muted">Free and open source under the MIT license: use, modify, distribute and sell it, privately or commercially. No accounts, no ads, no telemetry.</p>
