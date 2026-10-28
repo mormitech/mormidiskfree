@@ -19,7 +19,7 @@ import (
 var assets embed.FS
 
 // wails.json is the single source of the version: it ends up in the macOS Info.plist and the Windows file properties,
-// and is read from here for the window title and the UI.
+// and is read from here for the About box.
 //
 //go:embed wails.json
 var projectJSON []byte
@@ -64,7 +64,7 @@ func main() {
 		}
 	}
 	app := NewApp(mock)
-	title, width, height := "mormiDiskFree v"+version(), windowW, windowH
+	title, width, height := "mormiDiskFree", windowW, windowH
 	var menuBar *menu.Menu
 	if about {
 		app.mode, title, width, height = "about", "About mormiDiskFree", 440, 600
