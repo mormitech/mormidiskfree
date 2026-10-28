@@ -96,6 +96,18 @@ mormiDiskFree makes no network connections and sends nothing anywhere. The only 
 compressed copy of your last scans (file and folder names and sizes) in your user cache folder
 (`~/Library/Caches/mormidiskfree`, `%LocalAppData%\mormidiskfree`, `~/.cache/mormidiskfree`). Delete that folder any time.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+Only Windows builds made by GitHub Actions from this repository are signed, and each release is approved by hand. Signing starts
+once the SignPath application is accepted; until then the Windows builds are unsigned.
+
+- Committers and reviewers: [Peter Jenei](https://github.com/mormitech)
+- Approvers: [Peter Jenei](https://github.com/mormitech)
+
+Privacy policy: [mormitech.com/privacy](https://mormitech.com/privacy/#mormitools). This program will not transfer any information
+to other networked systems unless specifically requested by the user or the person installing or operating it.
+
 ## How it works
 
 - **Scanner (Go).** Walks the tree in parallel, counts the space files take **on disk** (allocated blocks, not nominal
