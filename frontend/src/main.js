@@ -2,7 +2,7 @@ import './style.css';
 import {hierarchy, partition} from 'd3-hierarchy';
 import {arc} from 'd3-shape';
 import {Home, ChooseFolder, Scan, Cancel, View, Reveal, Volumes, FreeSpace, Trash, Version, CachedScan, CacheTime, RescanFolder, Platform, SaveSession, LoadSession, Mode} from '../wailsjs/go/main/App';
-import {EventsOn, BrowserOpenURL} from '../wailsjs/runtime/runtime';
+import {EventsOn, BrowserOpenURL, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import logo from './assets/mormitech-mark.svg';
 
 const $ = (id) => document.getElementById(id);
@@ -56,6 +56,7 @@ async function showStart() {
     $('cache').hidden = true;
     $('space').hidden = true;
     $('rescanfolder').hidden = true;
+    WindowSetTitle('mormiDiskFree');
     volumes = (await Volumes()) || [];
     const times = await Promise.all(volumes.map((v) => CacheTime(v.path)));
     $('splash').hidden = false;
@@ -396,6 +397,13 @@ function showError(err) {
     $('back').onclick = () => { if (current) render(current); else showStart(); };
 }
 
+// The window title names what is open: the disk's name, or the folder's for a folder scan.
+function showTitle(path) {
+    const disk = volumes.find((v) => v.path === path);
+    const name = disk ? disk.name : path.split(/[\\/]/).filter(Boolean).pop() || path;
+    WindowSetTitle(`mormiDiskFree – ${name}`);
+}
+
 function leaveStart() {
     document.body.classList.remove('start');
     $('disks').disabled = false;
@@ -421,6 +429,7 @@ async function openTarget(path, {cachedOnly = false, focus = ''} = {}) {
     if (!path || busy) return false;
     resetFor(path);
     volumes = (await Volumes()) || [];
+    showTitle(path);
     // Reading a big saved scan can take a second or two; show a spinner if it does, but not a flash if it is quick.
     const timer = setTimeout(() => showLoading(`Opening the saved scan of ${path}…`), 150);
     let cached;
@@ -453,6 +462,7 @@ async function scan(path) {
     showScanning(path);
     try {
         volumes = (await Volumes()) || [];
+        showTitle(path);
         usage = await FreeSpace(path).catch(() => null);
         const res = await Scan(path);
         scanAt = res.at;
