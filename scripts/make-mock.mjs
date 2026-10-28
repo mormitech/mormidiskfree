@@ -56,7 +56,7 @@ const movies = (k = 1) => [
 ];
 
 const code = () => [
-    dir('mcdiskfree', dir('src', blob(180, WORDS, 'go', 2 * KB, 40 * KB)),
+    dir('mormidiskfree', dir('src', blob(180, WORDS, 'go', 2 * KB, 40 * KB)),
         dir('node_modules', ...Array.from({length: 40}, (_, i) => dir(`pkg-${pad(i, 2)}`, blob(60, WORDS, 'js', 4 * KB, 400 * KB)))),
         dir('.git', blob(90, WORDS, 'pack', 200 * KB, 90 * MB))),
     dir('website', dir('src', blob(220, WORDS, 'tsx', 1 * KB, 30 * KB)),

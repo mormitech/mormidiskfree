@@ -1,9 +1,10 @@
 :root {
     --bg: #1b2636; --panel: #223148; --text: #e8edf4; --muted: #8fa0b7; --line: #31445f; --accent: #5aa9ff;
+    --wm-mormi: var(--text); --wm-diskfree: #9a8ff0;
     color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
-    :root { --bg: #f4f6fa; --panel: #ffffff; --text: #1c2533; --muted: #5f6f86; --line: #d6dde8; --accent: #1d6fd8; color-scheme: light; }
+    :root { --bg: #f4f6fa; --panel: #ffffff; --text: #1c2533; --muted: #5f6f86; --line: #d6dde8; --accent: #1d6fd8; --wm-mormi: #171a1c; --wm-diskfree: #6253ba; color-scheme: light; }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -110,6 +111,7 @@ body.about-mode { display: block; overflow: auto; } body.about-mode header, body
 /* the name in the header */
 header h1 { display: flex; align-items: center; gap: 9px; margin: 0 12px 0 0; font-size: 17px; font-weight: 650; white-space: nowrap; }
 .logo-sm { height: 20px; width: auto; }
+.wm-mormi { color: var(--wm-mormi); } .wm-diskfree { color: var(--wm-diskfree); }
 @media (prefers-color-scheme: dark) { .logo-sm { filter: invert(1); } }
 
 /* icon buttons in the header */

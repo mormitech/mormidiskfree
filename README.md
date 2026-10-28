@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://mormitech.com/mctools/mcdiskfree/"><img alt="mormiDiskFree showing a whole disk as an interactive sunburst chart" src="https://mormitech.com/mctools/mcdiskfree/assets/mcdiskfree_02-whole-disk.png" width="820"></a>
+  <a href="https://mormitech.com/mormitools/mormidiskfree/"><img alt="mormiDiskFree showing a whole disk as an interactive sunburst chart" src="https://mormitech.com/mormitools/mormidiskfree/assets/mormidiskfree_02-whole-disk.png" width="820"></a>
 </p>
 
 ---
