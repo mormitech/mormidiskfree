@@ -30,6 +30,10 @@ export function LoadSession() {
   return window['go']['main']['App']['LoadSession']();
 }
 
+export function MapView(arg1) {
+  return window['go']['main']['App']['MapView'](arg1);
+}
+
 export function Mode() {
   return window['go']['main']['App']['Mode']();
 }

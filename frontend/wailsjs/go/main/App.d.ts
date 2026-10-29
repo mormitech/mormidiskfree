@@ -17,6 +17,8 @@ export function Home():Promise<string>;
 
 export function LoadSession():Promise<main.Session>;
 
+export function MapView(arg1:string):Promise<main.MapResult>;
+
 export function Mode():Promise<string>;
 
 export function Platform():Promise<string>;

@@ -1,7 +1,7 @@
 import './style.css';
-import {hierarchy, partition} from 'd3-hierarchy';
+import {hierarchy, partition, treemap, treemapSquarify} from 'd3-hierarchy';
 import {arc} from 'd3-shape';
-import {Home, ChooseFolder, Scan, Cancel, View, Reveal, Volumes, FreeSpace, Trash, Version, CachedScan, CacheTime, RescanFolder, Platform, SaveSession, LoadSession, Mode} from '../wailsjs/go/main/App';
+import {Home, ChooseFolder, Scan, Cancel, View, Reveal, Volumes, FreeSpace, Trash, Version, CachedScan, CacheTime, RescanFolder, Platform, SaveSession, LoadSession, Mode, MapView} from '../wailsjs/go/main/App';
 import {EventsOn, BrowserOpenURL, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import logo from './assets/mormitech-mark.svg';
 
@@ -96,8 +96,7 @@ function render(node, anim) {
     subtrees.clear();
     $('splash').hidden = true;
     drawCrumbs(node.path);
-    drawChart(node, anim);
-    drawList(node, anim);
+    drawViews(node, anim);
     drawBasket();
     drawSpace();
     drawCacheNote();
@@ -231,7 +230,7 @@ function flatten(node, depth, hueIndex, out) {
 function loadExpanded() {
     for (const path of [...expanded]) {
         if (subtrees.has(path)) continue;
-        View(path).then((n) => { subtrees.set(path, n); drawList(current); }).catch(() => expanded.delete(path));
+        View(path).then((n) => { subtrees.set(path, n); drawRows(); }).catch(() => expanded.delete(path));
     }
 }
 
@@ -257,7 +256,7 @@ function drawList(node, anim) {
         if (act === 'toggle') {
             if (expanded.has(c.path)) expanded.delete(c.path); else expanded.add(c.path);
             loadExpanded();
-            drawList(current);
+            drawRows();
         } else if (act === 'reveal') Reveal(c.path);
         else if (act === 'basket') toggleBasket(c);
         else if (c.isDir) open(c.path);
@@ -265,6 +264,223 @@ function drawList(node, anim) {
     };
     loadExpanded();
 }
+
+// ---- treemap view ---------------------------------------------------------------------------------------------------
+// The other way to look at a folder: its tree with sizes on the top left, the file types on the top right, and every
+// file as a block below, the bigger the file the bigger the block, coloured by type. The header switch picks the view.
+
+let view = 'sunburst';
+try { view = localStorage.getItem('view') === 'treemap' ? 'treemap' : 'sunburst'; } catch (_) { /* no storage: sunburst */ }
+const wds = () => view === 'treemap';
+let mapData = null;       // {path, node, types} from MapView, for the folder on screen
+let mapLeaves = [];       // the blocks as laid out on the canvas
+let mapRoot = null;       // the laid-out tree, to find a folder's rectangle
+let selected = '';        // path picked in the tree or the map
+let selectedExt = null;   // file type picked in the list; the map dims the others
+let treeRows = [];
+
+// The biggest types get a colour each; the rest share a grey.
+const TYPE_COLOURS = ['#5aa9ff', '#f29a4a', '#4fc9a4', '#c792ea', '#e5c76b', '#ef6f8a', '#7fd1e8', '#a3c25a', '#9a8ff0', '#d98f6c',
+    '#6c8bd9', '#e08bd0', '#5fcf8e', '#c9a46a', '#4f9fa8', '#e3a7c0'];
+const OTHER = '#8a94a3';
+const SMALL = '#69727f';   // "smaller items" and folders of only small files
+const extOf = (name) => { const i = name.lastIndexOf('.'); return i > 0 && i < name.length - 1 ? name.slice(i + 1).toLowerCase() : ''; };
+let typeColour = new Map();
+
+function setView(v) {
+    view = v;
+    try { localStorage.setItem('view', v); } catch (_) { /* remembered for this run only */ }
+    document.body.classList.toggle('wds', wds());
+    const t = $('viewtoggle');
+    t.setAttribute('aria-checked', String(wds()));
+    t.dataset.tip = wds() ? 'Switch to the sunburst view' : 'Switch to the treemap view: folders, file types and every file as a block';
+    hideTip();
+    if (current) drawViews(current);
+}
+
+function drawViews(node, anim) {
+    if (wds()) {
+        drawTree(node);
+        loadMap(node, anim);
+    } else {
+        drawChart(node, anim);
+        drawList(node, anim);
+    }
+}
+const drawRows = () => { if (current) (wds() ? drawTree(current) : drawList(current)); };
+const redrawPicture = () => { if (current) (wds() ? drawMap() : drawChart(current)); };
+
+async function loadMap(node, anim) {
+    let res;
+    try { res = await MapView(node.path); } catch (err) { console.error(err); return; }
+    if (current !== node) return;   // went elsewhere meanwhile
+    mapData = {path: node.path, node: res.node, types: res.types || []};
+    typeColour = new Map(mapData.types.map((t, i) => [t.ext, TYPE_COLOURS[i] || OTHER]));
+    if (selectedExt !== null && !typeColour.has(selectedExt)) selectedExt = null;
+    drawTypes();
+    drawTree(node);   // the file rows take their colours from the types
+    drawMap();
+    if (anim && !reduceMotion) $('map').animate([{opacity: 0}, {opacity: 1}], {duration: 260, easing: 'ease-out'});
+}
+
+const colourOf = (n) => (n.isDir || !n.path ? SMALL : typeColour.get(extOf(n.name)) || OTHER);
+const inBasket = (p) => !!p && [...basket.keys()].some((b) => p === b || isUnder(p, b));
+
+function drawTree(node) {
+    treeRows = flatten(node, 0, 0, []);
+    const head = '<div class="trow thead"><span>Name</span><span>Share of folder</span><span class="num">%</span><span class="num">Size</span><span class="num">Files</span></div>';
+    $('tree').innerHTML = head + treeRows.map(({c, depth, hueIndex, parentSize}, i) => {
+        const pct = parentSize ? (c.size / parentSize) * 100 : 0;
+        const bar = c.isDir ? `hsl(${(hueIndex * 137.5 + 210) % 360} 62% 55%)` : colourOf(c);
+        const open = c.isDir && expanded.has(c.path);
+        const tri = c.isDir && c.path ? `<span class="tri${open ? ' open' : ''}" data-a="toggle">▸</span>` : '<span class="tri sp">▸</span>';
+        const cls = (c.path && c.path === selected ? ' sel' : '') + (basket.has(c.path) ? ' in-basket' : '');
+        return `<div class="trow${cls}" data-i="${i}"><span style="padding-left:${depth * 18}px">${tri}<span class="nm">${esc(c.name)}</span></span>` +
+            `<span class="share"><i style="width:${pct}%;background:${bar}"></i></span><span class="num">${pct.toFixed(1)}%</span>` +
+            `<span class="num sz">${bytes(c.size)}</span><span class="num">${c.isDir ? c.items.toLocaleString() : ''}</span>` +
+            (c.path ? `<div class="acts"><button data-a="reveal">${revealLabel}</button><button data-a="basket">${basket.has(c.path) ? 'Remove' : '+ Basket'}</button></div>` : '') + '</div>';
+    }).join('');
+    const rowOf = (e) => { const r = e.target.closest('.trow:not(.thead)'); return r ? treeRows[+r.dataset.i].c : null; };
+    $('tree').onclick = (e) => {
+        const c = rowOf(e);
+        if (!c || !c.path) return;
+        const act = e.target.dataset.a;
+        if (act === 'toggle') {
+            if (expanded.has(c.path)) expanded.delete(c.path); else expanded.add(c.path);
+            loadExpanded();
+            drawTree(current);
+        } else if (act === 'reveal') Reveal(c.path);
+        else if (act === 'basket') toggleBasket(c);
+        else select(c.path);
+    };
+    // a double click goes into a folder, as a click does in the sunburst list
+    $('tree').ondblclick = (e) => {
+        const c = rowOf(e);
+        if (!c || !c.path || e.target.dataset.a) return;
+        if (c.isDir) open(c.path); else Reveal(c.path);
+    };
+    loadExpanded();
+}
+
+function drawTypes() {
+    if (!mapData) { $('types').innerHTML = ''; return; }
+    const total = mapData.node.size || 1;
+    $('types').innerHTML = '<div class="ty thead"><span></span><span>Type</span><span class="num">Files</span><span class="num">Size</span><span class="num">%</span></div>' +
+        mapData.types.map((t, i) => `<div class="ty${t.ext === selectedExt ? ' sel' : ''}" data-i="${i}" title="click: show only these in the map">` +
+            `<span class="sw" style="background:${typeColour.get(t.ext)}"></span><span>${t.ext ? '.' + esc(t.ext) : '(no extension)'}</span>` +
+            `<span class="num">${t.files.toLocaleString()}</span><span class="num sz">${bytes(t.size)}</span><span class="num">${((t.size / total) * 100).toFixed(1)}%</span></div>`).join('');
+    $('types').onclick = (e) => {
+        const r = e.target.closest('.ty:not(.thead)');
+        if (!r) return;
+        const ext = mapData.types[+r.dataset.i].ext;
+        selectedExt = selectedExt === ext ? null : ext;
+        drawTypes();
+        drawMap();
+    };
+}
+
+function drawMap() {
+    const canvas = $('map');
+    const box = canvas.getBoundingClientRect();
+    if (!mapData || !box.width || !box.height) return;
+    const dpr = devicePixelRatio || 1;
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, box.width, box.height);
+
+    const root = hierarchy(mapData.node, (d) => d.children).sum((d) => (d.children && d.children.length ? 0 : d.size));
+    treemap().tile(treemapSquarify).size([box.width, box.height]).paddingOuter((d) => (d.depth > 0 && d.depth < 3 ? 1 : 0))(root);
+    mapRoot = root;
+    mapLeaves = root.leaves().filter((d) => d.x1 - d.x0 > 0 && d.y1 - d.y0 > 0);
+    for (const d of mapLeaves) {
+        const w = d.x1 - d.x0, h = d.y1 - d.y0;
+        const n = d.data;
+        const fade = (selectedExt !== null && (n.isDir || !n.path || extOf(n.name) !== selectedExt)) || inBasket(n.path);
+        ctx.globalAlpha = fade ? 0.25 : 1;
+        ctx.fillStyle = colourOf(n);
+        // a gap of a pixel between blocks once they are big enough to have one
+        ctx.fillRect(d.x0, d.y0, w > 3 ? w - 1 : w, h > 3 ? h - 1 : h);
+        if (w > 6 && h > 6) {   // a little shading, so neighbouring blocks of one colour still read as separate files
+            const g = ctx.createLinearGradient(d.x0, d.y0, d.x1, d.y1);
+            g.addColorStop(0, '#ffffff38');
+            g.addColorStop(0.5, '#ffffff00');
+            g.addColorStop(1, '#00000040');
+            ctx.fillStyle = g;
+            ctx.fillRect(d.x0, d.y0, w - 1, h - 1);
+        }
+        if (w > 80 && h > 16 && n.path) {
+            ctx.fillStyle = '#0d1522';
+            ctx.font = '11px -apple-system, "Segoe UI", system-ui, sans-serif';
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(d.x0, d.y0, w - 1, h - 1);
+            ctx.clip();
+            ctx.fillText(n.name, d.x0 + 4, d.y0 + 13);
+            ctx.restore();
+        }
+    }
+    ctx.globalAlpha = 1;
+    const sel = selected && root.find((d) => d.data.path === selected);
+    if (sel) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(sel.x0 + 1, sel.y0 + 1, Math.max(sel.x1 - sel.x0 - 3, 1), Math.max(sel.y1 - sel.y0 - 3, 1));
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(sel.x0, sel.y0, Math.max(sel.x1 - sel.x0 - 1, 1), Math.max(sel.y1 - sel.y0 - 1, 1));
+    }
+}
+
+function leafAt(e) {
+    const r = $('map').getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    return mapLeaves.find((d) => x >= d.x0 && x < d.x1 && y >= d.y0 && y < d.y1);
+}
+
+// Picks path in both halves: the block is outlined, and the tree opens down to the row and scrolls to it.
+function select(path) {
+    selected = path;
+    if (current && path && isUnder(path, current.path)) {
+        const sep = sepOf(path);
+        let dir = path.slice(0, path.lastIndexOf(sep));
+        while (dir.length > current.path.length && isUnder(dir, current.path)) {
+            expanded.add(dir);
+            dir = dir.slice(0, dir.lastIndexOf(sep));
+        }
+    }
+    drawTree(current);
+    drawMap();
+    scrollToSelected();
+}
+
+// The rows of folders just opened arrive a moment later, so try again for a short while.
+function scrollToSelected(tries = 10) {
+    const i = treeRows.findIndex((r) => r.c.path === selected);
+    if (i >= 0) { $('tree').querySelector(`.trow[data-i="${i}"]`)?.scrollIntoView({block: 'nearest'}); return; }
+    if (tries > 0) setTimeout(() => scrollToSelected(tries - 1), 60);
+}
+
+$('map').onmousemove = (e) => {
+    const d = leafAt(e);
+    if (!d) return hideTip();
+    showTip(e, d.data, mapData.node.size);
+};
+$('map').onmouseleave = hideTip;
+$('map').onclick = (e) => {
+    const d = leafAt(e);
+    if (!d || !d.data.path) return;
+    if (e.shiftKey) toggleBasket(d.data);
+    else select(d.data.path);
+};
+// a double click goes into the folder the block is in (or into the block, if it is a folder of small files)
+$('map').ondblclick = (e) => {
+    const d = leafAt(e);
+    if (!d || !d.data.path) return;
+    const dir = d.data.isDir ? d.data : d.parent && d.parent.data;
+    if (dir && dir.path && dir.path !== current.path) open(dir.path);
+};
+$('map').oncontextmenu = (e) => { e.preventDefault(); goUp(); };
 
 // ---- basket and delete-to-Trash -------------------------------------------------------------------------------------
 
@@ -277,13 +493,14 @@ function toggleBasket(n) {
     }
     basketState = 'idle';
     basketError = '';
-    drawList(current);
+    drawRows();
     drawBasket();
-    drawChart(current);
+    redrawPicture();
 }
 
 function drawBasket() {
     const el = $('basket');
+    document.body.classList.toggle('basket-on', basket.size > 0);
     if (!basket.size) { el.hidden = true; return; }
     el.hidden = false;
     const total = [...basket.values()].reduce((s, b) => s + b.size, 0);
@@ -311,9 +528,9 @@ function drawBasket() {
 
 function refreshBasketViews() {
     basketState = 'idle';
-    drawList(current);
+    drawRows();
     drawBasket();
-    drawChart(current);
+    redrawPicture();
 }
 
 async function moveToTrash() {
@@ -418,6 +635,9 @@ function resetFor(path) {
     basket.clear();
     basketError = '';
     $('sun').innerHTML = '';
+    mapData = null;
+    selected = '';
+    selectedExt = null;
     $('cache').hidden = true;
     $('space').hidden = true;   // both come back when the disk has loaded (render)
     $('rescanfolder').hidden = true;
@@ -499,7 +719,9 @@ $('up').onclick = goUp;
 $('root').onclick = () => { if (current && current.path !== scanRoot) open(scanRoot); };
 $('rescan').onclick = () => scan(scanRoot);
 $('rescanfolder').onclick = rescanFolder;
-addEventListener('resize', () => { if (current) drawChart(current); });
+addEventListener('resize', () => { if (current) redrawPicture(); });
+$('viewtoggle').onclick = () => setView(view === 'treemap' ? 'sunburst' : 'treemap');
+setView(view);
 // ---- About window -----------------------------------------------------------------------------------------------
 // The program started with --about shows this instead of the app. Links open in the system's browser.
 
