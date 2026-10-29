@@ -9,6 +9,8 @@ export function CachedScan(arg1:string):Promise<main.ScanResult>;
 
 export function Cancel():Promise<void>;
 
+export function Children(arg1:string):Promise<main.Node>;
+
 export function ChooseFolder():Promise<string>;
 
 export function FreeSpace(arg1:string):Promise<disk.Usage>;
@@ -20,6 +22,8 @@ export function LoadSession():Promise<main.Session>;
 export function MapView(arg1:string):Promise<main.MapResult>;
 
 export function Mode():Promise<string>;
+
+export function OpenFile(arg1:string):Promise<void>;
 
 export function Platform():Promise<string>;
 

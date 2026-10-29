@@ -1,7 +1,7 @@
 import './style.css';
-import {hierarchy, partition, treemap, treemapSquarify} from 'd3-hierarchy';
+import {hierarchy, partition} from 'd3-hierarchy';
 import {arc} from 'd3-shape';
-import {Home, ChooseFolder, Scan, Cancel, View, Reveal, Volumes, FreeSpace, Trash, Version, CachedScan, CacheTime, RescanFolder, Platform, SaveSession, LoadSession, Mode, MapView} from '../wailsjs/go/main/App';
+import {Home, ChooseFolder, Scan, Cancel, View, Reveal, Volumes, FreeSpace, Trash, Version, CachedScan, CacheTime, RescanFolder, Platform, SaveSession, LoadSession, Mode, MapView, OpenFile, Children} from '../wailsjs/go/main/App';
 import {EventsOn, BrowserOpenURL, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import logo from './assets/mormitech-mark.svg';
 
@@ -161,7 +161,10 @@ function drawChart(node, anim) {
         else if (e.shiftKey && d.path) toggleBasket(d);
         else if (d.isDir) open(d.path);
     };
-    svg.oncontextmenu = (e) => { e.preventDefault(); goUp(); };
+    svg.oncontextmenu = (e) => {
+        const p = e.target.closest('path');
+        showMenu(e, p ? arcs[+p.dataset.i].data : null);
+    };
 
     const up = node.path !== scanRoot;
     $('center').innerHTML = `<div class="name">${esc(node.name || node.path)}</div><div class="size">${bytes(node.size)}</div>` +
@@ -230,7 +233,7 @@ function flatten(node, depth, hueIndex, out) {
 function loadExpanded() {
     for (const path of [...expanded]) {
         if (subtrees.has(path)) continue;
-        View(path).then((n) => { subtrees.set(path, n); drawRows(); }).catch(() => expanded.delete(path));
+        Children(path).then((n) => { subtrees.set(path, n); drawRows(); }).catch(() => expanded.delete(path));
     }
 }
 
@@ -262,6 +265,10 @@ function drawList(node, anim) {
         else if (c.isDir) open(c.path);
         else Reveal(c.path);
     };
+    $('list').oncontextmenu = (e) => {
+        const row = e.target.closest('.row');
+        showMenu(e, row ? listRows[+row.dataset.i].c : null);
+    };
     loadExpanded();
 }
 
@@ -273,8 +280,11 @@ let view = 'sunburst';
 try { view = localStorage.getItem('view') === 'treemap' ? 'treemap' : 'sunburst'; } catch (_) { /* no storage: sunburst */ }
 const wds = () => view === 'treemap';
 let mapData = null;       // {path, node, types} from MapView, for the folder on screen
-let mapLeaves = [];       // the blocks as laid out on the canvas
-let mapRoot = null;       // the laid-out tree, to find a folder's rectangle
+let mapLayout = null;     // {w, h, items}: every block and folder as the worker laid them out
+let mapLeaves = [];       // the blocks of mapLayout, for finding the one under the pointer
+let mapAnim = null;       // how the next layout should appear
+let layoutId = 0;         // only the answer to the latest request is drawn
+const layoutWorker = new Worker(new URL('./treemap.worker.js', import.meta.url), {type: 'module'});
 let selected = '';        // path picked in the tree or the map
 let selectedExt = null;   // file type picked in the list; the map dims the others
 let treeRows = [];
@@ -308,20 +318,38 @@ function drawViews(node, anim) {
     }
 }
 const drawRows = () => { if (current) (wds() ? drawTree(current) : drawList(current)); };
-const redrawPicture = () => { if (current) (wds() ? drawMap() : drawChart(current)); };
+const redrawPicture = () => { if (current) (wds() ? drawMap(true) : drawChart(current)); };
 
+// Fetching the blocks and laying them out takes a moment on a big disk, so a spinner turns over the map meanwhile.
 async function loadMap(node, anim) {
+    $('mapbusy').hidden = false;
     let res;
-    try { res = await MapView(node.path); } catch (err) { console.error(err); return; }
+    try { res = await MapView(node.path); } catch (err) { console.error(err); $('mapbusy').hidden = true; return; }
     if (current !== node) return;   // went elsewhere meanwhile
     mapData = {path: node.path, node: res.node, types: res.types || []};
     typeColour = new Map(mapData.types.map((t, i) => [t.ext, TYPE_COLOURS[i] || OTHER]));
     if (selectedExt !== null && !typeColour.has(selectedExt)) selectedExt = null;
     drawTypes();
     drawTree(node);   // the file rows take their colours from the types
-    drawMap();
-    if (anim && !reduceMotion) $('map').animate([{opacity: 0}, {opacity: 1}], {duration: 260, easing: 'ease-out'});
+    mapAnim = anim;
+    layoutMap(true);
 }
+
+function layoutMap(withTree) {
+    const box = $('map').getBoundingClientRect();
+    if (!mapData || !box.width || !box.height) { $('mapbusy').hidden = true; return; }
+    layoutWorker.postMessage({id: ++layoutId, node: withTree ? mapData.node : null, w: box.width, h: box.height});
+}
+
+layoutWorker.onmessage = (e) => {
+    if (e.data.id !== layoutId) return;
+    mapLayout = e.data;
+    mapLeaves = mapLayout.items.filter((d) => d.leaf);
+    paintMap();
+    $('mapbusy').hidden = true;
+    if (mapAnim && !reduceMotion) $('map').animate([{opacity: 0}, {opacity: 1}], {duration: 260, easing: 'ease-out'});
+    mapAnim = null;
+};
 
 const colourOf = (n) => (n.isDir || !n.path ? SMALL : typeColour.get(extOf(n.name)) || OTHER);
 const inBasket = (p) => !!p && [...basket.keys()].some((b) => p === b || isUnder(p, b));
@@ -353,12 +381,7 @@ function drawTree(node) {
         else if (act === 'basket') toggleBasket(c);
         else select(c.path);
     };
-    // a double click goes into a folder, as a click does in the sunburst list
-    $('tree').ondblclick = (e) => {
-        const c = rowOf(e);
-        if (!c || !c.path || e.target.dataset.a) return;
-        if (c.isDir) open(c.path); else Reveal(c.path);
-    };
+    $('tree').oncontextmenu = (e) => showMenu(e, rowOf(e));
     loadExpanded();
 }
 
@@ -375,30 +398,117 @@ function drawTypes() {
         const ext = mapData.types[+r.dataset.i].ext;
         selectedExt = selectedExt === ext ? null : ext;
         drawTypes();
-        drawMap();
+        drawMap(true);
     };
 }
 
-function drawMap() {
+// Redraws the map; a new size (the window, or the basket panel coming or going) needs a new layout first.
+// Redraws the map; a new size (the window, or the basket panel coming or going) needs a new layout first. With
+// animate, the map blends over when it goes from nothing picked to a pick, or back; moving from one pick to another
+// is instant.
+function drawMap(animate) {
+    const box = $('map').getBoundingClientRect();
+    if (!mapLayout || !box.width || !box.height) return;
+    if (Math.abs(mapLayout.w - box.width) > 0.5 || Math.abs(mapLayout.h - box.height) > 0.5) layoutMap(false);
+    paintMap(animate);
+}
+
+let mapBase = null;    // {layout, colours, canvas}: every block in full colour, for the layout and colours it was made for
+let mapFrame = null;   // the blocks as last drawn (without the selection frame), to blend from
+let mapFocus = null;   // what the map last showed in focus (null for nothing)
+let mapAnimFrame = 0;
+
+function paintMap(animate) {
     const canvas = $('map');
     const box = canvas.getBoundingClientRect();
-    if (!mapData || !box.width || !box.height) return;
+    if (!mapLayout || !box.width || !box.height) return;
     const dpr = devicePixelRatio || 1;
-    canvas.width = Math.round(box.width * dpr);
-    canvas.height = Math.round(box.height * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, box.width, box.height);
+    const W = Math.round(box.width * dpr), H = Math.round(box.height * dpr);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
 
-    const root = hierarchy(mapData.node, (d) => d.children).sum((d) => (d.children && d.children.length ? 0 : d.size));
-    treemap().tile(treemapSquarify).size([box.width, box.height]).paddingOuter((d) => (d.depth > 0 && d.depth < 3 ? 1 : 0))(root);
-    mapRoot = root;
-    mapLeaves = root.leaves().filter((d) => d.x1 - d.x0 > 0 && d.y1 - d.y0 > 0);
+    // Every block in full colour is painted once (the costly part: tens of thousands of shaded blocks) and kept;
+    // fading is then the background colour laid over the faded parts at 75%, which looks the same as painting those
+    // blocks at a quarter strength, and costs a few rectangles.
+    if (!mapBase || mapBase.layout !== mapLayout || mapBase.colours !== typeColour || mapBase.canvas.width !== W || mapBase.canvas.height !== H) {
+        mapBase = {layout: mapLayout, colours: typeColour, canvas: paintBlocks(W, H, dpr)};
+    }
+    const next = document.createElement('canvas');
+    next.width = W;
+    next.height = H;
+    const ctx = next.getContext('2d');
+    ctx.drawImage(mapBase.canvas, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg');
+    ctx.globalAlpha = 0.75;
+
+    // With something picked, everything outside it fades, so the pick stands out wherever it is. Its rectangle holds
+    // all of it, the "smaller items" of a folder included.
+    const focus = selected && mapLayout.items.find((d) => d.data.path === selected);
+    if (focus) {
+        const bw = W / dpr, bh = H / dpr;
+        ctx.fillRect(0, 0, bw, focus.y0);
+        ctx.fillRect(0, focus.y1, bw, bh - focus.y1);
+        ctx.fillRect(0, focus.y0, focus.x0, focus.y1 - focus.y0);
+        ctx.fillRect(focus.x1, focus.y0, bw - focus.x1, focus.y1 - focus.y0);
+    }
+    // A type picked in the list, and what is in the basket, fade block by block (inside the pick only, so nothing
+    // fades twice).
+    if (selectedExt !== null || basket.size) {
+        for (const d of mapLeaves) {
+            if (focus && (d.x0 < focus.x0 || d.y0 < focus.y0 || d.x1 > focus.x1 || d.y1 > focus.y1)) continue;
+            const n = d.data;
+            if ((selectedExt !== null && (n.isDir || !n.path || extOf(n.name) !== selectedExt)) || inBasket(n.path)) {
+                ctx.fillRect(d.x0, d.y0, d.x1 - d.x0, d.y1 - d.y0);
+            }
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    const focusToggled = !!focus !== !!mapFocus;
+    const from = animate && focusToggled && !reduceMotion && mapFrame && mapFrame.width === W && mapFrame.height === H ? mapFrame : null;
+    mapFrame = next;
+    mapFocus = focus;
+    const sel = focus;
+    const out = canvas.getContext('2d');
+    const draw = (t) => {
+        out.setTransform(1, 0, 0, 1, 0, 0);
+        out.globalAlpha = 1;
+        out.clearRect(0, 0, W, H);
+        if (from && t < 1) {
+            out.drawImage(from, 0, 0);
+            out.globalAlpha = t;
+        }
+        out.drawImage(next, 0, 0);
+        out.globalAlpha = 1;
+        out.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (sel) drawSelection(out, sel);
+    };
+    cancelAnimationFrame(mapAnimFrame);
+    if (!from) return draw(1);
+    // The clock starts at the first frame on screen, not at the click: drawing the new picture and the tree can take
+    // longer than the fade itself, which would otherwise be over before it was ever shown.
+    let start = null;
+    const duration = 260;
+    const step = (now) => {
+        if (start === null) start = now;
+        const t = Math.min((now - start) / duration, 1);
+        draw(1 - Math.pow(1 - t, 3));   // ease out
+        if (t < 1) mapAnimFrame = requestAnimationFrame(step);
+    };
+    mapAnimFrame = requestAnimationFrame(step);
+}
+
+// Paints every block in full colour, with its shading and, where it fits, its name.
+function paintBlocks(W, H, dpr) {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.font = '11px -apple-system, "Segoe UI", system-ui, sans-serif';
     for (const d of mapLeaves) {
         const w = d.x1 - d.x0, h = d.y1 - d.y0;
         const n = d.data;
-        const fade = (selectedExt !== null && (n.isDir || !n.path || extOf(n.name) !== selectedExt)) || inBasket(n.path);
-        ctx.globalAlpha = fade ? 0.25 : 1;
         ctx.fillStyle = colourOf(n);
         // a gap of a pixel between blocks once they are big enough to have one
         ctx.fillRect(d.x0, d.y0, w > 3 ? w - 1 : w, h > 3 ? h - 1 : h);
@@ -412,7 +522,6 @@ function drawMap() {
         }
         if (w > 80 && h > 16 && n.path) {
             ctx.fillStyle = '#0d1522';
-            ctx.font = '11px -apple-system, "Segoe UI", system-ui, sans-serif';
             ctx.save();
             ctx.beginPath();
             ctx.rect(d.x0, d.y0, w - 1, h - 1);
@@ -421,15 +530,23 @@ function drawMap() {
             ctx.restore();
         }
     }
-    ctx.globalAlpha = 1;
-    const sel = selected && root.find((d) => d.data.path === selected);
-    if (sel) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#000';
-        ctx.strokeRect(sel.x0 + 1, sel.y0 + 1, Math.max(sel.x1 - sel.x0 - 3, 1), Math.max(sel.y1 - sel.y0 - 3, 1));
-        ctx.strokeStyle = '#fff';
-        ctx.strokeRect(sel.x0, sel.y0, Math.max(sel.x1 - sel.x0 - 1, 1), Math.max(sel.y1 - sel.y0 - 1, 1));
-    }
+    return c;
+}
+
+// A white frame between a dark edge and an accent ring, so it shows on any colour; at least 16 px across so that the
+// mouse pointer resting on a small block does not hide it.
+function drawSelection(ctx, sel) {
+    const w = Math.max(sel.x1 - sel.x0, 16), h = Math.max(sel.y1 - sel.y0, 16);
+    const x = (sel.x0 + sel.x1 - w) / 2, y = (sel.y0 + sel.y1 - h) / 2;
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--accent');
+    ctx.strokeRect(x - 1, y - 1, w + 1, h + 1);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#000000b0';
+    ctx.strokeRect(x + 1, y + 1, w - 3, h - 3);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff';
+    ctx.strokeRect(x + 1, y + 1, w - 3, h - 3);
 }
 
 function leafAt(e) {
@@ -449,38 +566,90 @@ function select(path) {
             dir = dir.slice(0, dir.lastIndexOf(sep));
         }
     }
-    drawTree(current);
-    drawMap();
-    scrollToSelected();
+    drawMap(true);
+    // the tree (and the folders it opens) waits for the first frame of the map, so the map answers the click at once
+    requestAnimationFrame(() => setTimeout(() => { drawTree(current); scrollToSelected(); }, 0));
 }
 
 // The rows of folders just opened arrive a moment later, so try again for a short while.
 function scrollToSelected(tries = 10) {
+    if (!selected) return;
     const i = treeRows.findIndex((r) => r.c.path === selected);
     if (i >= 0) { $('tree').querySelector(`.trow[data-i="${i}"]`)?.scrollIntoView({block: 'nearest'}); return; }
     if (tries > 0) setTimeout(() => scrollToSelected(tries - 1), 60);
 }
 
+// After a click the tooltip steps aside, so it does not cover the outline of what was just picked; it comes back
+// once the pointer moves on.
+let tipQuietAt = null;
 $('map').onmousemove = (e) => {
     const d = leafAt(e);
+    $('map').style.cursor = d && d.data.path ? 'pointer' : 'default';   // a block that can be picked
+    if (tipQuietAt && Math.hypot(e.clientX - tipQuietAt[0], e.clientY - tipQuietAt[1]) < 12) return;
+    tipQuietAt = null;
     if (!d) return hideTip();
     showTip(e, d.data, mapData.node.size);
 };
 $('map').onmouseleave = hideTip;
 $('map').onclick = (e) => {
     const d = leafAt(e);
-    if (!d || !d.data.path) return;
+    if (!d || !d.data.path || e.detail > 1) return;   // the second click of a double click changes nothing
+    hideTip();
+    tipQuietAt = [e.clientX, e.clientY];
     if (e.shiftKey) toggleBasket(d.data);
-    else select(d.data.path);
+    else select(d.data.path === selected ? '' : d.data.path);   // a second click lets go
 };
-// a double click goes into the folder the block is in (or into the block, if it is a folder of small files)
-$('map').ondblclick = (e) => {
-    const d = leafAt(e);
-    if (!d || !d.data.path) return;
-    const dir = d.data.isDir ? d.data : d.parent && d.parent.data;
-    if (dir && dir.path && dir.path !== current.path) open(dir.path);
+$('map').oncontextmenu = (e) => { const d = leafAt(e); showMenu(e, d ? d.data : null); };
+
+// ---- the bar between the top and the map ---------------------------------------------------------------------------
+// It shares the height of the treemap view between the tree with the types and the map. The share is kept as a
+// fraction of the view, so it scales with the window, and remembered for the next start.
+
+const SPLIT_KEY = 'treemapSplit', SPLIT_DEFAULT = 0.4, SPLIT_MIN_PX = 90;
+let split = SPLIT_DEFAULT;
+try { const v = parseFloat(localStorage.getItem(SPLIT_KEY)); if (v > 0 && v < 1) split = v; } catch (_) { /* default */ }
+
+function applySplit(save) {
+    const total = $('wds').clientHeight;
+    // both parts keep some room, however small the window
+    const lo = total ? Math.min(SPLIT_MIN_PX / total, 0.5) : 0.1;
+    split = Math.max(lo, Math.min(1 - lo, split));
+    $('wtop').style.height = (split * 100).toFixed(2) + '%';
+    $('wsplit').setAttribute('aria-valuenow', Math.round(split * 100));
+    if (save) {
+        try { localStorage.setItem(SPLIT_KEY, String(split)); } catch (_) { /* remembered for this run only */ }
+        redrawPicture();
+    }
+}
+
+$('wsplit').onpointerdown = (e) => {
+    e.preventDefault();
+    const bar = $('wsplit');
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('drag');
+    document.body.classList.add('splitting');
+    hideTip();
+    const top = $('wds').getBoundingClientRect().top;
+    // while dragging only the layout moves (the map stretches for a moment); it is drawn anew on release
+    bar.onpointermove = (ev) => { split = (ev.clientY - top) / $('wds').clientHeight; applySplit(false); };
+    bar.onpointerup = bar.onpointercancel = () => {
+        bar.onpointermove = bar.onpointerup = bar.onpointercancel = null;
+        bar.classList.remove('drag');
+        document.body.classList.remove('splitting');
+        applySplit(true);
+    };
 };
-$('map').oncontextmenu = (e) => { e.preventDefault(); goUp(); };
+$('wsplit').ondblclick = () => { split = SPLIT_DEFAULT; applySplit(true); };
+$('wsplit').onkeydown = (e) => {
+    const step = e.shiftKey ? 0.1 : 0.03;
+    if (e.key === 'ArrowUp') split -= step;
+    else if (e.key === 'ArrowDown') split += step;
+    else return;
+    e.preventDefault();
+    applySplit(true);
+};
+applySplit(false);
+addEventListener('resize', () => applySplit(false));
 
 // ---- basket and delete-to-Trash -------------------------------------------------------------------------------------
 
@@ -584,15 +753,84 @@ function goUp() {
 }
 
 function showTip(e, n, total) {
+    if (!$('menu').hidden) return;   // the menu is open: the tooltip would only get in its way
     const t = $('tip');
     t.hidden = false;
     t.innerHTML = `<div><b>${esc(n.name)}</b></div><div>${bytes(n.size)} · ${total ? ((n.size / total) * 100).toFixed(1) : 0}%` +
         (n.isDir ? ` · ${n.items.toLocaleString()} files` : '') + `</div>` + (n.path ? `<div class="p">${esc(n.path)}</div>` : '') + (n.note ? `<div class="p">${esc(n.note)}</div>` : '') + (n.unscanned && onMac ? '<div class="p">click: open Full Disk Access settings</div>' : '') +
-        (n.path ? '<div class="p">shift-click: add to basket</div>' : '');
-    t.style.left = Math.min(e.clientX + 14, innerWidth - 380) + 'px';
-    t.style.top = Math.min(e.clientY + 14, innerHeight - 110) + 'px';
+        (n.path ? '<div class="p">right-click: menu · shift-click: add to basket</div>' : '');
+    placeNear(t, e.clientX, e.clientY);
+}
+
+// Puts a floating box next to the pointer: inside the window, and never over the pointer itself (a box under the
+// pointer would flicker as the mouse moves). Below or above the pointer if it fits there, sliding sideways as
+// needed; otherwise to its right or left, sliding up or down.
+function placeNear(el, x, y) {
+    const gap = 16, edge = 6, W = innerWidth, H = innerHeight;
+    el.style.left = '0px';   // measure at full width, not squeezed against the window's right edge
+    el.style.top = '0px';
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    const below = y + gap + h <= H - edge, above = y - gap - h >= edge;
+    const right = x + gap + w <= W - edge, left = x - gap - w >= edge;
+    let l, t;
+    if (below || above) {
+        t = below ? y + gap : y - gap - h;
+        l = clamp(right ? x + gap : left ? x - gap - w : x - w / 2, edge, W - w - edge);
+    } else if (right || left) {
+        l = right ? x + gap : x - gap - w;
+        t = clamp(y - h / 2, edge, H - h - edge);
+    } else {   // a window too small for the box anywhere around the pointer
+        l = clamp(x + gap, edge, W - w - edge);
+        t = clamp(y + gap, edge, H - h - edge);
+    }
+    el.style.left = l + 'px';
+    el.style.top = t + 'px';
 }
 function hideTip() { $('tip').hidden = true; }
+
+// ---- right-click menu ---------------------------------------------------------------------------------------------
+// The same menu on a slice, a block and a row: open it (a folder in the chart, a file in its own app), add it to the
+// basket, show it in the file manager, or go one folder up as right-click did before.
+
+let menuItems = [];
+
+function showMenu(e, n) {
+    e.preventDefault();
+    hideTip();
+    const real = n && n.path;
+    menuItems = [];
+    if (real) {
+        const here = current && n.path === current.path;
+        menuItems.push({label: 'Open', off: here, run: () => (n.isDir ? open(n.path) : OpenFile(n.path))});
+        menuItems.push({label: basket.has(n.path) ? 'Remove from basket' : 'Add to basket', run: () => toggleBasket(n)});
+        menuItems.push({label: revealLabel, run: () => Reveal(n.path)});
+        menuItems.push(null);
+    }
+    menuItems.push({label: 'One folder up', off: !current || current.path === scanRoot, run: goUp});
+    const m = $('menu');
+    m.innerHTML = (real ? `<div class="mh">${esc(n.name)}</div>` : '') + menuItems.map((it, i) => (it ?
+        `<button data-i="${i}"${it.off ? ' disabled' : ''}>${esc(it.label)}</button>` : '<hr>')).join('');
+    m.hidden = false;
+    placeNear(m, e.clientX - 14, e.clientY - 14);   // the menu opens right at the pointer
+}
+function hideMenu() { $('menu').hidden = true; }
+$('menu').onclick = (e) => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    hideMenu();
+    menuItems[+b.dataset.i].run();
+};
+$('menu').oncontextmenu = (e) => e.preventDefault();
+addEventListener('mousedown', (e) => { if (!e.target.closest('#menu')) hideMenu(); }, true);
+// Escape closes the menu, or else lets go of what is picked in the treemap.
+addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('menu').hidden) hideMenu();
+    else if (wds() && selected) select('');
+});
+addEventListener('blur', hideMenu);
+addEventListener('wheel', hideMenu, {passive: true});
 
 function showScanning(path) {
     $('splash').hidden = false;
@@ -636,6 +874,8 @@ function resetFor(path) {
     basketError = '';
     $('sun').innerHTML = '';
     mapData = null;
+    mapLayout = null;
+    mapLeaves = [];
     selected = '';
     selectedExt = null;
     $('cache').hidden = true;

@@ -14,6 +14,10 @@ export function Cancel() {
   return window['go']['main']['App']['Cancel']();
 }
 
+export function Children(arg1) {
+  return window['go']['main']['App']['Children'](arg1);
+}
+
 export function ChooseFolder() {
   return window['go']['main']['App']['ChooseFolder']();
 }
@@ -36,6 +40,10 @@ export function MapView(arg1) {
 
 export function Mode() {
   return window['go']['main']['App']['Mode']();
+}
+
+export function OpenFile(arg1) {
+  return window['go']['main']['App']['OpenFile'](arg1);
 }
 
 export function Platform() {
