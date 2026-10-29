@@ -68,7 +68,7 @@ aside { width: 340px; border-left: 1px solid var(--line); background: var(--pane
 #basket .err { color: #e5484d; font-size: 12px; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 #basket .note { color: var(--muted); font-size: 12px; }
 #splash[hidden] { display: none; }
-#tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; box-shadow: 0 4px 14px #0005; max-width: 360px; z-index: 5; }
+#tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; box-shadow: 0 4px 14px #0005; max-width: min(360px, calc(100vw - 12px)); z-index: 5; overflow-wrap: anywhere; }
 #tip .p { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 
 #start .ver { font-size: 12px; opacity: .7; }
@@ -161,13 +161,21 @@ body.wds aside { display: none; }
 body.wds.basket-on aside { display: flex; }
 body.wds aside #list { display: none; }
 body.wds #basket { border-top: 0; max-height: none; flex: 1; }
-#wtop { display: flex; height: 40%; min-height: 160px; border-bottom: 1px solid var(--line); }
+#wtop { display: flex; height: 40%; min-height: 0; flex: none; }
+/* the bar between the top and the map: drag it (or use the arrow keys) to share the height differently */
+#wsplit { flex: none; height: 7px; margin: -3px 0; position: relative; z-index: 2; cursor: row-resize; touch-action: none; }
+#wsplit::before { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: var(--line); transition: background .15s, height .15s, top .15s; }
+#wsplit:hover::before, #wsplit.drag::before, #wsplit:focus-visible::before { top: 2px; height: 3px; background: var(--accent); }
+#wsplit:focus-visible { outline: none; }
+body.splitting, body.splitting * { cursor: row-resize !important; user-select: none; }
 #tree { flex: 1; min-width: 0; overflow-y: auto; }
 #types { width: 340px; border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; }
 .thead { position: sticky; top: 0; z-index: 1; background: var(--panel); color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
 #tree .trow { display: grid; grid-template-columns: minmax(0, 1fr) 140px 54px 78px 66px; gap: 8px; align-items: center; height: 24px; padding: 0 12px; position: relative; font-size: 13px; }
 #tree .trow:not(.thead):hover { background: var(--panel); }
-#tree .trow.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+/* the selection keeps its colour under the pointer, a shade stronger, so a click shows at once */
+#tree .trow.sel, #tree .trow.sel:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+#tree .trow.sel:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 #tree .trow > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #tree .num, #types .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 #tree .sz, #types .sz { color: var(--text); }
@@ -180,8 +188,24 @@ body.wds #basket { border-top: 0; max-height: none; flex: 1; }
 #tree .trow.in-basket .nm { text-decoration: line-through; }
 #types .ty { display: grid; grid-template-columns: 14px minmax(0, 1fr) 60px 74px 50px; gap: 8px; align-items: center; height: 24px; padding: 0 12px; font-size: 13px; cursor: pointer; }
 #types .ty:not(.thead):hover { background: var(--bg); }
-#types .ty.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+#types .ty.sel, #types .ty.sel:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+#types .ty.sel:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 #types .ty > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #types .sw { width: 14px; height: 14px; border-radius: 3px; }
 #mapbox { flex: 1; min-height: 0; position: relative; background: var(--bg); }
 #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* right-click menu */
+#menu { position: fixed; z-index: 30; min-width: 190px; max-width: 320px; padding: 4px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: 0 8px 24px #0006; }
+#menu[hidden] { display: none; }
+#menu .mh { padding: 4px 10px 6px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#menu button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px; padding: 6px 10px; }
+#menu button:hover:not(:disabled) { background: var(--accent); color: #fff; }
+#menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+#mapbusy { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--muted); background: color-mix(in srgb, var(--bg) 70%, transparent); animation: fade .2s ease-out; }
+#mapbusy[hidden] { display: none; }
+/* the highlight of a picked row eases in and out */
+#tree .trow, #types .ty { transition: background-color .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { #tree .trow, #types .ty { transition: none; } }

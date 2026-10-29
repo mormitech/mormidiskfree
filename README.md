@@ -35,14 +35,24 @@ nothing, has no accounts, no ads, no telemetry and no upsell, and is installable
 
 ## What it does
 
-mormiDiskFree scans a folder or a whole disk and draws it as an interactive **sunburst chart**: every ring is a folder
-level, every slice is sized by the space it takes on disk.
+mormiDiskFree scans a folder or a whole disk and shows it two ways; the switch in the header flips between them, and the
+app remembers your choice.
 
-- **Click to drill in.** Click a slice to open the folder, the centre (or **↑ Up**, or right-click) to go back, **⌂ Root** to jump to the top.
+- **Sunburst chart.** Every ring is a folder level, every slice is sized by the space it takes on disk.
+- **Treemap view** (in the style of WinDirStat). The folder tree with sizes and file counts on the top left, the file
+  types on the top right, and below them every file as a block, sized by its space and coloured by its type.
+
+
+- **Click to drill in.** Click a slice to open the folder, the centre (or **↑ Up**) to go back, **⌂ Root** to jump to the top.
+- **Pick a file in the treemap.** Click a block and everything else fades, the tree opens down to the file; click it
+  again (or press Escape) to let go. Pick a file type to see only its blocks. Drag the bar between the two halves to
+  share the height your way; that is remembered too.
+- **Right-click anything** (a slice, a block or a row) to **Open** it, **Add to basket** or show it in Finder or Explorer.
 - **Whole-disk view.** The start screen lists your disks with their usage; scan one and the free space shows up as a dashed slice.
 - **Free space always visible.** Size and free space of the disk you are looking at, in the header and in the centre of the chart.
 - **A tree next to the chart.** Open folders with the triangle without leaving your place in the chart; every row shows its share.
-- **A basket, and a safe delete.** Collect files and folders (hover a row → **+ Basket**, or shift-click a slice), then **Move to Trash**.
+- **A basket, and a safe delete.** Collect files and folders (right-click → **Add to basket**, hover a row → **+ Basket**,
+  or shift-click a slice or block), then **Move to Trash**.
   Things only ever go to the Trash / Recycle Bin, never a permanent delete, and only from inside the folder you scanned.
 - **Instant reopen.** Scans are cached; opening a disk you scanned before shows it at once ("scanned 2 h ago"). Rescan everything, or just one folder.
 - **Picks up where you left off.** Restarting restores the disk and folder you were looking at.
@@ -50,7 +60,7 @@ level, every slice is sized by the space it takes on disk.
 
 ## Install
 
-mormiDiskFree is an **early preview** (version 0.7). Pick your system:
+mormiDiskFree is an **early preview** (version 0.8). Pick your system:
 
 **macOS** (Apple silicon), with [Homebrew](https://brew.sh):
 
@@ -113,6 +123,9 @@ to other networked systems unless specifically requested by the user or the pers
 - **Scanner (Go).** Walks the tree in parallel, counts the space files take **on disk** (allocated blocks, not nominal
   size), skips symlinks and does not cross into other mounted volumes.
 - **Chart and UI (vanilla JS + d3).** A webview inside a native window (Wails); `d3-hierarchy` and `d3-shape` draw the sunburst.
+- **Treemap.** A disk holds far more files than there are pixels, so the Go side sends only the blocks big enough to see
+  (about 20,000; the rest of each folder becomes one "smaller items" block) plus exact per-type totals. A web worker
+  lays out the squarified treemap off the main thread, and the blocks are painted once on a canvas.
 - **Cache.** Each full scan is saved as a gzip-compressed file, standard library only, no database. The biggest 100
   entries per folder are kept, the rest becomes "smaller items". A folder's modification time is deliberately **not**
   used to skip work: it does not change when a file inside grows, so a cached size could silently be wrong. Instead the
@@ -128,7 +141,7 @@ Next, in this order:
 2. **Honest numbers.** Detect folders it may not read (macOS Full Disk Access) and say so; show purgeable space and
    snapshots so the chart adds up to the disk; handle APFS clones, hard links and iCloud placeholders.
 3. **Live scan.** Watch the chart grow while it scans.
-4. **Quality of life.** App icon, search, keyboard navigation, drag a folder onto the window, file-type colours,
+4. **Quality of life.** App icon, search, keyboard navigation, drag a folder onto the window,
    Quick Look, short explanations for system folders, units and theme settings.
 5. **Real change detection** with file-system events, for instant incremental updates.
 
@@ -145,6 +158,7 @@ go test ./...
 | Path | What |
 |---|---|
 | `scan.go` | parallel scanner, tree helpers |
+| `treemap.go` | the treemap's blocks and file types |
 | `cache.go`, `session.go` | saved scans and the last session |
 | `app.go` | the methods the UI calls |
 | `mock.go`, `mock/` | demo mode: fictional disks (`scripts/make-mock.mjs` regenerates them) |

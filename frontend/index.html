@@ -29,7 +29,8 @@
         <div id="stage"><svg id="sun"></svg><div id="center"></div></div>
         <div id="wds">
             <div id="wtop"><div id="tree"></div><div id="types"></div></div>
-            <div id="mapbox"><canvas id="map"></canvas></div>
+            <div id="wsplit" role="separator" aria-orientation="horizontal" aria-label="Resize the tree and the map" tabindex="0" title="Drag to resize · double-click to reset"></div>
+            <div id="mapbox"><canvas id="map"></canvas><div id="mapbusy" hidden><div class="spin"></div>Building the treemap…</div></div>
         </div>
     </section>
     <aside>
@@ -40,6 +41,7 @@
 </main>
 <div id="about" hidden></div>
 <div id="tip" hidden></div>
+<div id="menu" role="menu" hidden></div>
 <script src="./src/main.js" type="module"></script>
 </body>
 </html>

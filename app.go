@@ -204,6 +204,21 @@ func (a *App) View(path string) (*Node, error) {
 	return prune(n, viewDepth), nil
 }
 
+// Children returns what the folder at path holds, one level deep: all the folder list needs to open a folder, and
+// much less to send than View's four levels.
+func (a *App) Children(path string) (*Node, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.root == nil {
+		return nil, errors.New("nothing scanned yet")
+	}
+	n := a.lookupLocked(path)
+	if n == nil {
+		return nil, errors.New("not in the scanned tree: " + path)
+	}
+	return prune(n, 1), nil
+}
+
 // Reveal shows path in the OS file manager.
 func (a *App) Reveal(path string) error {
 	if a.mock != nil {
@@ -216,6 +231,22 @@ func (a *App) Reveal(path string) error {
 		return exec.Command("explorer", "/select,", path).Start()
 	default:
 		return exec.Command("xdg-open", filepath.Dir(path)).Start()
+	}
+}
+
+// OpenFile opens path with the app the OS uses for it.
+func (a *App) OpenFile(path string) error {
+	if a.mock != nil {
+		return nil
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", path).Start()
+	case "windows":
+		// not "cmd /c start", which reads & and ^ in the path as its own syntax
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", path).Start()
+	default:
+		return exec.Command("xdg-open", path).Start()
 	}
 }
 
