@@ -1,7 +1,7 @@
 name: build
 
 # Every push builds and tests on the three systems. Pushing a tag like v0.5.0 also attaches the packages to a GitHub
-# release: a zipped .app (macOS arm64), an Inno Setup installer and a zip (Windows x64), a tar.gz (Linux x64).
+# release: a zipped .app (macOS arm64), an Inno Setup installer and a zip (Windows x64), a tar.gz and a .deb (Linux x64).
 on:
   push:
     branches: [main]
@@ -65,6 +65,42 @@ jobs:
         run: |
           mkdir dist
           tar -czf "dist/mormidiskfree-${{ steps.version.outputs.version }}-linux-x64.tar.gz" -C build/bin mormidiskfree -C "$PWD" LICENSE
+      # A .deb for Debian and Ubuntu: `sudo apt install ./mormidiskfree_<version>_amd64.deb` installs GTK and WebKitGTK
+      # from the distribution along with it. dpkg-shlibdeps reads the binary and names the packages it needs.
+      - name: Package (Linux .deb)
+        if: runner.os == 'Linux'
+        run: |
+          v='${{ steps.version.outputs.version }}'
+          pkg="$RUNNER_TEMP/deb"
+          install -Dm755 build/bin/mormidiskfree "$pkg/usr/bin/mormidiskfree"
+          install -Dm644 LICENSE "$pkg/usr/share/doc/mormidiskfree/copyright"
+          install -Dm644 packaging/linux/mormidiskfree.desktop "$pkg/usr/share/applications/mormidiskfree.desktop"
+          command -v convert >/dev/null || sudo apt-get install -y imagemagick
+          for s in 64 128 256 512; do
+            mkdir -p "$pkg/usr/share/icons/hicolor/${s}x${s}/apps"
+            convert build/appicon.png -resize ${s}x${s} "$pkg/usr/share/icons/hicolor/${s}x${s}/apps/mormidiskfree.png"
+          done
+          # dpkg-shlibdeps wants a debian/control to sit next to it
+          work="$RUNNER_TEMP/shlibs" && mkdir -p "$work/debian" && printf 'Source: mormidiskfree\n\nPackage: mormidiskfree\nArchitecture: amd64\n' > "$work/debian/control"
+          deps=$(cd "$work" && dpkg-shlibdeps -O "$pkg/usr/bin/mormidiskfree" | sed 's/^shlibs:Depends=//')
+          echo "Depends: $deps"
+          mkdir -p "$pkg/DEBIAN"
+          cat > "$pkg/DEBIAN/control" <<EOF
+          Package: mormidiskfree
+          Version: $v
+          Architecture: amd64
+          Maintainer: Mormitech <accounts@mormitech.com>
+          Depends: $deps
+          Section: utils
+          Priority: optional
+          Homepage: https://github.com/mormitech/mormidiskfree
+          Installed-Size: $(du -sk "$pkg/usr" | cut -f1)
+          Description: Disk space and disk usage analyzer
+           mormiDiskFree scans a folder or a whole disk and shows what takes the space, as a sunburst chart or as a
+           treemap of every file, and moves what you pick to the Trash.
+          EOF
+          dpkg-deb --build --root-owner-group "$pkg" "dist/mormidiskfree_${v}_amd64.deb"
+          dpkg-deb --info "dist/mormidiskfree_${v}_amd64.deb"
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -117,10 +153,43 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # The .deb installed the way a user would, on a clean Ubuntu with no GTK or WebKitGTK: apt has to bring them, and the
+  # app has to start.
+  deb:
+    needs: build
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    env:
+      DEBIAN_FRONTEND: noninteractive   # no questions from apt (time zone and the like)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mormidiskfree-linux
+          path: dist
+      - name: Install the .deb with apt
+        run: |
+          apt-get update
+          if ldconfig -p | grep -E 'libwebkit2gtk|libgtk-3'; then echo 'the system already has GTK or WebKitGTK'; exit 1; fi
+          apt-get install -y ./dist/mormidiskfree_*_amd64.deb
+          apt-get install -y --no-install-recommends xvfb xauth
+          dpkg -L mormidiskfree
+      - name: The app starts and keeps running (demo disks, virtual display)
+        run: |
+          set +e
+          timeout 20 xvfb-run -a mormidiskfree --mock linux > /tmp/app.log 2>&1
+          code=$?
+          cat /tmp/app.log
+          if [ $code -ne 124 ]; then echo "mormidiskfree exited with $code before the 20 s were up"; exit 1; fi
+          echo 'mormidiskfree ran for 20 s'
+      - name: Removed cleanly
+        run: |
+          apt-get remove -y mormidiskfree
+          if [ -e /usr/bin/mormidiskfree ] || [ -e /usr/share/applications/mormidiskfree.desktop ]; then echo 'files left after removal'; exit 1; fi
+
   # Pushing a tag like v0.5.0 attaches every package to a GitHub release.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, deb]
     runs-on: ubuntu-latest
     permissions:
       contents: write

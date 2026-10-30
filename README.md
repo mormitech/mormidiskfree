@@ -72,8 +72,14 @@ brew install mormitech/tap/mormidiskfree
 download `mormidiskfree-setup-<version>-windows-x64.exe` from the [latest release](https://github.com/mormitech/mormidiskfree/releases/latest)
 and run it (no admin rights needed; `/VERYSILENT` installs without any window).
 
-**Linux** (x64), with [Homebrew](https://brew.sh) (a current version, which installs casks on Linux too): `brew install mormitech/tap/mormidiskfree`. You still need GTK 3 and WebKitGTK 4.1 from your distribution (see below). Or download `mormidiskfree-<version>-linux-x64.tar.gz` from the latest release, extract it and run `mormidiskfree`.
-You need GTK 3 and WebKitGTK 4.1 installed (`libgtk-3-0` and `libwebkit2gtk-4.1-0` on Debian and Ubuntu).
+**Linux** (x64): on Debian and Ubuntu, download `mormidiskfree_<version>_amd64.deb` from the
+[latest release](https://github.com/mormitech/mormidiskfree/releases/latest) and install it with
+`sudo apt install ./mormidiskfree_<version>_amd64.deb`; apt brings GTK 3 and WebKitGTK 4.1 along, and the app shows up in
+your applications menu. It needs Ubuntu 24.04, Debian 13 or newer.
+With [Homebrew](https://brew.sh) (a current version, which installs casks on Linux too): `brew install mormitech/tap/mormidiskfree`.
+Or download `mormidiskfree-<version>-linux-x64.tar.gz`, extract it and run `mormidiskfree`.
+These two need GTK 3 and WebKitGTK 4.1 from your distribution (`sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0` on
+Debian and Ubuntu); Homebrew does not use the system's libraries, and bringing its own would mean gigabytes.
 
 **From source**, it takes a minute:
 
@@ -93,7 +99,7 @@ build with `-tags webkit2_41`.
 |---|---|---|---|
 | Builds and tests in CI | ✅ | ✅ (installer installed, started and uninstalled on a runner) | ✅ |
 | Used and tried by hand | ✅ (Apple silicon) | ⏳ not yet | ⏳ not yet |
-| Install | `brew install mormitech/tap/mormidiskfree` ✅ | installer on the release ✅, `scoop install mormidiskfree` ✅, winget ⏳ (submitted) | tar.gz on the release ✅, `brew install mormitech/tap/mormidiskfree` ✅ |
+| Install | `brew install mormitech/tap/mormidiskfree` ✅ | installer on the release ✅, `scoop install mormidiskfree` ✅, winget ⏳ (submitted) | .deb and tar.gz on the release ✅, `brew install mormitech/tap/mormidiskfree` ✅ |
 | Move to Trash | Finder (so "Put Back" works) | Recycle Bin (untested) | `gio trash` or `trash-put` (untested) |
 
 Releases are not code-signed yet. The Homebrew cask clears the macOS download flag, so brew installs open without a

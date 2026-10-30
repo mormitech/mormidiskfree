@@ -12,11 +12,18 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// On Linux the window carries its icon itself (macOS and Windows take it from the app bundle and the .exe); without it
+// window managers such as xfwm4 show a generic one.
+//
+//go:embed build/appicon.png
+var appIcon []byte
 
 // wails.json is the single source of the version: it ends up in the macOS Info.plist and the Windows file properties,
 // and is read from here for the About box.
@@ -83,7 +90,9 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		// Without Mac options Wails leaves the green zoom (maximise) button disabled.
-		Mac:        &mac.Options{},
+		Mac: &mac.Options{},
+		// ProgramName is the window class, so the taskbar and the desktop files group the window under mormidiskfree.
+		Linux:      &linux.Options{Icon: appIcon, ProgramName: "mormidiskfree"},
 		OnStartup:  app.startup,
 		OnShutdown: app.shutdown,
 		Bind: []interface{}{

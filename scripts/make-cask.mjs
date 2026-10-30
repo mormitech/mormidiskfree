@@ -89,6 +89,8 @@ process.stdout.write(`cask "mormidiskfree" do
     caveats <<~EOS
       mormidiskfree needs GTK 3 and WebKitGTK 4.1 from your system, for example on Debian and Ubuntu:
         sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
+      On Debian and Ubuntu the .deb from the GitHub release installs them for you:
+        https://github.com/${repo}/releases/latest
     EOS
   end
 end
