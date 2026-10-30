@@ -6,6 +6,9 @@ AppId={{7D2C4B8E-3A51-4F6D-9C0B-1E8A5F2D7B64}
 AppName=mormiDiskFree
 AppVersion=__VERSION__
 AppPublisher=mormitech
+; product name and version in the file properties, kept the same as the app .exe (SignPath wants them consistent)
+VersionInfoVersion=__VERSION__
+VersionInfoProductName=mormiDiskFree
 AppPublisherURL=https://github.com/mormitech/mormidiskfree
 AppSupportURL=https://github.com/mormitech/mormidiskfree/issues
 DefaultDirName={autopf}\mormidiskfree
