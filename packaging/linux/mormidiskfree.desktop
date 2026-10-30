@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=mormiDiskFree
+GenericName=Disk Usage Analyzer
+Comment=See what is eating your disk
+Exec=mormidiskfree
+Icon=mormidiskfree
+Terminal=false
+Categories=System;Utility;Filesystem;
+Keywords=disk;space;usage;analyzer;treemap;sunburst;
+StartupWMClass=mormidiskfree
