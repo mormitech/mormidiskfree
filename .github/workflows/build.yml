@@ -2,6 +2,7 @@ name: build
 
 # Every push builds and tests on the three systems. Pushing a tag like v0.5.0 also attaches the packages to a GitHub
 # release: a zipped .app (macOS arm64), an Inno Setup installer and a zip (Windows x64), a tar.gz and a .deb (Linux x64).
+# The Windows job also builds an MSIX package for the Microsoft Store (see packaging/windows/msix/README.md).
 on:
   push:
     branches: [main]
@@ -147,6 +148,66 @@ jobs:
           if (Test-Path $exe) { throw 'files left after uninstall' }
           if (Test-Path $lnk) { throw 'Start menu entry left after uninstall' }
           Write-Host 'install, start and uninstall all work'
+      # The MSIX package for the Microsoft Store. The identity comes from Partner Center through repository variables;
+      # without them the package gets a placeholder identity, good for the test below but not for the Store. It is not
+      # signed (the Store signs it on upload), so it goes to a separate artifact and not to the GitHub release.
+      - name: Package (Windows MSIX)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME || 'Mormitech.mormiDiskFree' }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER || 'CN=Mormitech' }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME || 'Mormitech' }}
+        run: |
+          packaging\windows\msix\build-msix.ps1 -Version '${{ steps.version.outputs.version }}' `
+            -IdentityName $env:MSIX_IDENTITY_NAME -Publisher $env:MSIX_PUBLISHER -PublisherDisplayName $env:MSIX_PUBLISHER_DISPLAY_NAME
+          New-Item -ItemType Directory dist-msix | Out-Null
+          Move-Item dist\*.msix dist-msix\
+          Get-ChildItem dist-msix | Format-Table Name, Length
+      # Install the package the way the Store would (signed here with a throwaway certificate whose subject matches the
+      # publisher), start it through its alias, check it keeps running, and remove it.
+      - name: Test the MSIX package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME || 'Mormitech.mormiDiskFree' }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER || 'CN=Mormitech' }}
+        run: |
+          $msix = Get-ChildItem dist-msix\*.msix | Select-Object -First 1
+          $bin = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\signtool.exe" |
+            Sort-Object { [version]$_.Directory.Parent.Name } | Select-Object -Last 1).Directory.FullName
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $env:MSIX_PUBLISHER -KeyUsage DigitalSignature `
+            -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          $cer = Join-Path $env:RUNNER_TEMP 'msix-test.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          $signed = Join-Path $env:RUNNER_TEMP $msix.Name
+          Copy-Item $msix.FullName $signed
+          & "$bin\signtool.exe" sign /fd SHA256 /sha1 $cert.Thumbprint $signed
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed with $LASTEXITCODE" }
+          Add-AppxPackage -Path $signed
+          $pkg = Get-AppxPackage -Name $env:MSIX_IDENTITY_NAME
+          if (-not $pkg) { throw 'package not installed' }
+          Write-Host "installed $($pkg.PackageFullName)"
+          $alias = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\mormidiskfree.exe'
+          if (-not (Test-Path $alias)) { throw 'no mormidiskfree alias' }
+          Start-Process $alias
+          Start-Sleep -Seconds 10
+          $app = Get-Process mormidiskfree -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -like "$($pkg.InstallLocation)*" }
+          if (-not $app) { throw 'the packaged mormidiskfree is not running 10 s after the start' }
+          Write-Host "mormidiskfree is running from $($app[0].Path)"
+          $app | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          Remove-AppxPackage -Package $pkg.PackageFullName
+          if (Get-AppxPackage -Name $env:MSIX_IDENTITY_NAME) { throw 'package left after removal' }
+          Write-Host 'MSIX install, start and removal all work'
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: mormidiskfree-msix
+          path: dist-msix/*
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
@@ -197,6 +258,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: mormidiskfree-{macos,linux,windows}
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
